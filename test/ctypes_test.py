@@ -13,14 +13,56 @@ PGCATS = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6}
 # Import compiled c code using ctypes
 _disperse = ctypes.CDLL(PROJECT_ROOT / 'build' / 'ctypes' / 'disperse.so')
 
+# Setup get_sigma_y function using ctypes
+# double get_sigma_y(char pgcat, double x)
+_disperse.get_sigma_y.argtypes = [c_char, c_double]
+_disperse.get_sigma_y.restype = c_double
+
 # Setup get_sigma_z function using ctypes
 # double get_sigma_z(char pgcat, double x)
 _disperse.get_sigma_z.argtypes = [c_char, c_double]
 _disperse.get_sigma_z.restype = c_double
 
 
+def get_sigma_y(pgcat, x):
+    return _disperse.get_sigma_y(c_char(PGCATS[pgcat]), c_double(x))
+
+
 def get_sigma_z(pgcat, x):
     return _disperse.get_sigma_z(c_char(PGCATS[pgcat]), c_double(x))
+
+
+class TestSigmaY(unittest.TestCase):
+    """ Range of testcases for get_sigma_y function. """
+
+    def test_1(self):
+        # stability class D, 0.5km downwind, example from:
+        # http://faculty.washington.edu/markbenj/CEE357/CEE%20357%20air%20dispersion%20models.pdf
+        self.assertAlmostEqual(get_sigma_y('D', 0.5), 36.146193496038)
+    
+    def test_2(self):
+        # stability class A, 0.997km downwind
+        self.assertAlmostEqual(get_sigma_y('A', 0.997), 208.157523627706)
+    
+    def test_3(self):
+        # stability class B, 12.345m downwind
+        self.assertAlmostEqual(get_sigma_y('B', 0.012345), 2.835970876943)
+    
+    def test_4(self):
+        # stability class C, 27.85km downwind
+        self.assertAlmostEqual(get_sigma_y('C', 27.85), 2025.696103458910)
+
+    def test_5(self):
+        # stability class D, 5.78m upwind
+        self.assertTrue(math.isnan(get_sigma_y('D', -0.00578)))
+
+    def test_6(self):
+        # stability class E, 445m downwind
+        self.assertAlmostEqual(get_sigma_y('E', 0.445), 24.275915684479)
+
+    def test_7(self):
+        # stability class F, 7.5558km downwind
+        self.assertAlmostEqual(get_sigma_y('F', 7.5558), 210.931775211803)
 
 
 class TestSigmaZ(unittest.TestCase):

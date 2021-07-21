@@ -2,6 +2,30 @@
 
 enum pgcat { A, B, C, D, E, F, G };
 
+double sigma_y(double c, double d, double x) {
+    double theta = 0.017453293 * (c - d * log(x));
+    return 465.11628 * x * tan(theta);
+}
+
+double get_sigma_y(char pgcat, double x) {
+    switch (pgcat) {
+        case A:
+            return sigma_y(24.1670, 2.5334, x);
+        case B:
+            return sigma_y(18.3330, 1.8096, x);
+        case C:
+            return sigma_y(12.5000, 1.0857, x);
+        case D:
+            return sigma_y(8.3330, 0.72382, x);
+        case E:
+            return sigma_y(6.2500, 0.54287, x);
+        case F:
+            return sigma_y(4.1667, 0.36191, x);
+        default:
+            return 0.0;
+    }
+}
+
 double sigma_z(double a, double b, double x) { return a * pow(x, b); }
 
 double sigma_za(double x) {
