@@ -2,7 +2,7 @@ import ctypes
 import math
 import unittest
 
-from ctypes import c_char, c_float, c_double
+from ctypes import c_char, c_double
 from pathlib import Path
 
 
@@ -13,15 +13,19 @@ PGCATS = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6}
 # Import compiled c code using ctypes
 _disperse = ctypes.CDLL(PROJECT_ROOT / 'build' / 'ctypes' / 'disperse.so')
 
-# Setup get_sigma_y function using ctypes
+### Setup ctypes functions ###
+
 # double get_sigma_y(char pgcat, double x)
 _disperse.get_sigma_y.argtypes = [c_char, c_double]
 _disperse.get_sigma_y.restype = c_double
 
-# Setup get_sigma_z function using ctypes
 # double get_sigma_z(char pgcat, double x)
 _disperse.get_sigma_z.argtypes = [c_char, c_double]
 _disperse.get_sigma_z.restype = c_double
+
+# double conc(double x, double y, double z, double u_z, double Q, double H, double s_y, double s_z)
+_disperse.conc.argtypes = [c_double, c_double, c_double, c_double, c_double, c_double, c_double, c_double]
+_disperse.conc.restype = c_double
 
 
 def get_sigma_y(pgcat, x):
@@ -30,6 +34,10 @@ def get_sigma_y(pgcat, x):
 
 def get_sigma_z(pgcat, x):
     return _disperse.get_sigma_z(c_char(PGCATS[pgcat]), c_double(x))
+
+
+def conc(x, y, z, u_z, Q, H, s_y, s_z):
+    return _disperse.conc(c_double(x), c_double(y), c_double(z), c_double(u_z), c_double(Q), c_double(H), c_double(s_y), c_double(s_z))
 
 
 class TestSigmaY(unittest.TestCase):
@@ -172,6 +180,32 @@ class TestSigmaZ(unittest.TestCase):
     def test_26(self):
         # stability class F, 54km downwind
         self.assertAlmostEqual(get_sigma_z('F', 54.0), 80.882017663045)
+
+
+class TestConc(unittest.TestCase):
+    """ Testcase for conc function. """
+
+    def test_1(self):
+        # Example from:
+        # http://faculty.washington.edu/markbenj/CEE357/CEE%20357%20air%20dispersion%20models.pdf
+
+        x = 0.5          # 500 m downwind
+        y = 0.0          # along plume centreline
+        z = 0.0          # ground level
+        u_z = 6.0        # 6 m/s wind speed at height of 50 m
+        pgcat = 'D'      # Neutral stability
+
+        # Source centred on (0,0), height 50 m, 10 g/s mass emission rate
+        Q = 10.0         # source.emission
+        H = 50.0         # source.height
+
+        # Calculate concentration at (x,y,z) == 19.2 ug/m3
+        s_y = get_sigma_y(pgcat, x)
+        s_z = get_sigma_z(pgcat, x)
+        
+        test_conc = conc(x, y, z, u_z, Q, H, s_y, s_z)
+        
+        self.assertAlmostEqual(test_conc, 1.917230120488e-05)
 
 
 if __name__ == '__main__':

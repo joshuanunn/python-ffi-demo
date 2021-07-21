@@ -125,3 +125,33 @@ double get_sigma_z(char pgcat, double x) {
             return 0.0;
     }
 }
+
+/*
+Calculate concentration at distance x along plume, at perpendicular offset y and height z
+arguments:
+x           [km]    receptor distance downwind along plume centreline
+y           [m]     receptor perpendicular offset from plume centreline
+z           [m]     receptor height
+u_z         [m/s]   wind speed at stack exit
+Q           [g/s]   pollutant mass emission rate
+H           [m]		effective stack height (includes plume rise)
+s_y         [m]     y plume sigma
+s_z         [m]     z plume sigma
+returns:
+r_conc      [g/m3]  calculated receptor concentration
+*/
+double conc(double x, double y, double z, double u_z, double Q, double H, double s_y, double s_z) {
+    // Early return if coordinate upwind, as concentration always zero
+    if (x <= 0.0) return 0.0;
+
+    double c1 = Q / (2.0 * M_PI * u_z * s_y * s_z);
+    double c2 = pow(M_E, -1.0 * (z - H) * (z - H) / (2.0 * s_z * s_z));
+    double c3 = pow(M_E, -1.0 * (z + H) * (z + H) / (2.0 * s_z * s_z));
+    double c4 = pow(M_E, -1.0 * y * y / (2.0 * s_y * s_y));
+
+    double r_conc = c1 * (c2 + c3) * c4; // g/m3
+    
+    if (isnan(r_conc)) return 0.0;
+    
+    return r_conc;
+}
