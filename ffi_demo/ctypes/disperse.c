@@ -4,6 +4,11 @@ enum pgcat { A, B, C, D, E, F, G };
 
 enum roughness { URBAN, RURAL };
 
+typedef struct {
+    double x;
+    double y;
+} Components;
+
 double sigma_y(double c, double d, double x) {
     double theta = 0.017453293 * (c - d * log(x));
     return 465.11628 * x * tan(theta);
@@ -191,6 +196,24 @@ double calc_uz(double uz_ref, double z, double z_ref, char pgcat, char roughness
     }
 
     return uz_ref * pow(z/z_ref, p);
+}
+
+/*
+Calculate the downwind (x) and crosswind (y) plume components from rectangular coordinates.
+arguments:
+components (pointer to struct)
+  -> x      [km]    downwind plume receptor distance
+  -> y      [m]     crosswind plume receptor distance
+e_r         [m]     receptor easting
+n_r         [m]     receptor northing
+e_s         [m]     source (stack) easting
+n_s         [m]     source (stack) northing
+sin_phi     []      sine of wind direction in radians
+cos_phi     []      cosine of wind direction in radians
+*/
+void wind_components(Components* components, double e_r, double n_r, double e_s, double n_s, double sin_phi, double cos_phi) {
+    components->x = (-1.0*(e_r-e_s)*sin_phi - (n_r-n_s)*cos_phi) / 1000.0;
+    components->y = (e_r-e_s)*cos_phi - (n_r-n_s)*sin_phi;
 }
 
 /*
