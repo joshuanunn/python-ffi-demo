@@ -10,6 +10,8 @@ PROJECT_ROOT = Path(__file__).parent.resolve() / '..'
 
 PGCATS = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6}
 
+ROUGHNESS = {'urban': 0, 'rural': 1}
+
 # Import compiled c code using ctypes
 _disperse = ctypes.CDLL(PROJECT_ROOT / 'build' / 'ctypes' / 'disperse.so')
 
@@ -23,6 +25,10 @@ _disperse.get_sigma_y.restype = c_double
 _disperse.get_sigma_z.argtypes = [c_char, c_double]
 _disperse.get_sigma_z.restype = c_double
 
+# double calc_uz(double uz_ref, double z, double z_ref, char pgcat, char roughness)
+_disperse.calc_uz.argtypes = [c_double, c_double, c_double, c_char, c_char]
+_disperse.calc_uz.restype = c_double
+
 # double conc(double x, double y, double z, double u_z, double Q, double H, double s_y, double s_z)
 _disperse.conc.argtypes = [c_double, c_double, c_double, c_double, c_double, c_double, c_double, c_double]
 _disperse.conc.restype = c_double
@@ -34,6 +40,10 @@ def get_sigma_y(pgcat, x):
 
 def get_sigma_z(pgcat, x):
     return _disperse.get_sigma_z(c_char(PGCATS[pgcat]), c_double(x))
+
+
+def calc_uz(uzref, z, zref, pgcat, roughness):
+    return _disperse.calc_uz(c_double(uzref), c_double(z), c_double(zref), c_char(PGCATS[pgcat]), c_char(ROUGHNESS[roughness]))
 
 
 def conc(x, y, z, u_z, Q, H, s_y, s_z):
@@ -180,6 +190,32 @@ class TestSigmaZ(unittest.TestCase):
     def test_26(self):
         # stability class F, 54km downwind
         self.assertAlmostEqual(get_sigma_z('F', 54.0), 80.882017663045)
+
+
+class TestCalcUz(unittest.TestCase):
+    """ Testcase for calc_uz function. """
+
+    def test_1(self):
+        
+        uzref = 3.5
+        z = 100.0
+        zref = 10.0
+        pgcat = 'D'
+        roughness = 'rural'
+
+        u_adj = calc_uz(uzref, z, zref, pgcat, roughness)
+
+        self.assertAlmostEqual(u_adj, 4.943881406180)
+        
+        uzref = 10.0
+        z = 50.0
+        zref = 45.0
+        pgcat = 'A'
+        roughness = 'urban'
+
+        u_adj = calc_uz(uzref, z, zref, pgcat, roughness)
+
+        self.assertAlmostEqual(u_adj, 10.159296222811)
 
 
 class TestConc(unittest.TestCase):

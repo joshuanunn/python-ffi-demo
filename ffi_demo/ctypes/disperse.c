@@ -2,6 +2,8 @@
 
 enum pgcat { A, B, C, D, E, F, G };
 
+enum roughness { URBAN, RURAL };
+
 double sigma_y(double c, double d, double x) {
     double theta = 0.017453293 * (c - d * log(x));
     return 465.11628 * x * tan(theta);
@@ -124,6 +126,71 @@ double get_sigma_z(char pgcat, double x) {
         default:
             return 0.0;
     }
+}
+
+/*
+Calculate effective wind speed, using "power law" method.
+arguments:
+uz_ref      [m/s]   wind speed of actual measurment
+z           [m]     target elevation
+z_ref       [m]     elevation of actual measurement
+pgcat       []      Pasquill-Gifford stability category
+roughness   []      "urban" or "rural"
+returns:
+Uz			[m/s] 	estimated wind speed at target elevation z
+*/
+double calc_uz(double uz_ref, double z, double z_ref, char pgcat, char roughness) {
+    double p;
+    
+    if (roughness == URBAN) {
+        switch (pgcat) {
+            case A:
+                p = 0.15;
+                break;
+            case B:
+                p = 0.15;
+                break;
+            case C:
+                p = 0.20;
+                break;
+            case D:
+                p = 0.25;
+                break;
+            case E:
+                p = 0.30;
+                break;
+            case F:
+                p = 0.30;
+                break;
+            default:
+                p = 0.0;
+        }
+    } else if (roughness == RURAL) {
+        switch (pgcat) {
+            case A:
+                p = 0.07;
+                break;
+            case B:
+                p = 0.07;
+                break;
+            case C:
+                p = 0.10;
+                break;
+            case D:
+                p = 0.15;
+                break;
+            case E:
+                p = 0.35;
+                break;
+            case F:
+                p = 0.55;
+                break;
+            default:
+                p = 0.0;
+        }
+    }
+
+    return uz_ref * pow(z/z_ref, p);
 }
 
 /*
