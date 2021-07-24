@@ -2,7 +2,7 @@ import ctypes
 import math
 import unittest
 
-from ctypes import c_char, c_double, c_int, POINTER, Structure
+from ctypes import byref, c_char, c_double, c_int, POINTER, Structure
 from pathlib import Path
 
 
@@ -32,9 +32,13 @@ _disperse.get_sigma_z.restype = c_double
 _disperse.calc_uz.argtypes = [c_double, c_double, c_double, c_char, c_char]
 _disperse.calc_uz.restype = c_double
 
-# Components wind_components(double e_r, double n_r, double e_s, double n_s, double sin_phi, double cos_phi)
+# void wind_components(double e_r, double n_r, double e_s, double n_s, double sin_phi, double cos_phi)
 _disperse.wind_components.argtypes = [POINTER(Components), c_double, c_double, c_double, c_double, c_double, c_double]
 _disperse.wind_components.restype = None
+
+# void plume_rise(double* dH, double* Xf, double us, double vs, double ds, double Ts, double Ta, char pgcat)
+_disperse.plume_rise.argtypes = [POINTER(c_double), POINTER(c_double), c_double, c_double, c_double, c_double, c_double, c_char]
+_disperse.plume_rise.restype = None
 
 # double conc(double x, double y, double z, double u_z, double Q, double H, double s_y, double s_z)
 _disperse.conc.argtypes = [c_double, c_double, c_double, c_double, c_double, c_double, c_double, c_double]
@@ -55,6 +59,10 @@ def calc_uz(uzref, z, zref, pgcat, roughness):
 
 def wind_components(wind_components, e_r, n_r, e_s, n_s, sin_phi, cos_phi):
     return _disperse.wind_components(wind_components, c_double(e_r), c_double(n_r), c_double(e_s), c_double(n_s), c_double(sin_phi), c_double(cos_phi))
+
+
+def plume_rise(dH, Xf, us, vs, ds, Ts, Ta, pgcat):
+    return _disperse.plume_rise(dH, Xf, c_double(us), c_double(vs), c_double(ds), c_double(Ts), c_double(Ta), c_char(PGCATS[pgcat]))
 
 
 def conc(x, y, z, u_z, Q, H, s_y, s_z):
@@ -246,6 +254,28 @@ class TestCalcUz(unittest.TestCase):
         u_adj = calc_uz(uzref, z, zref, pgcat, roughness)
 
         self.assertAlmostEqual(u_adj, 10.159296222811)
+
+
+class TestPlumeRise(unittest.TestCase):
+    """ Testcase for plume_rise function. """
+
+    def test_1(self):
+        # Example from:
+        # https://ceprofs.civil.tamu.edu/qying/cven301_fall2014_arch/lecture7_c.pdf
+        vs = 20.0   # m/s
+        ds = 5.0    # m
+        U = 6.0     # m/s
+        Ts = 400.0  # K
+        Ta = 280.0  # K
+        pgcat = 'D'
+
+        dH = c_double(0.0)
+        Xf = c_double(0.0)
+        
+        plume_rise(byref(dH), byref(Xf), U, vs, ds, Ts, Ta, pgcat)
+        
+        self.assertAlmostEqual(dH.value, 223.352113600373)
+        self.assertAlmostEqual(Xf.value, 1264.034881130080)        
 
 
 class TestConc(unittest.TestCase):

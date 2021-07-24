@@ -1,5 +1,7 @@
 #include <math.h>
 
+const double g = 9.80616; // Gravitational constant
+
 enum pgcat { A, B, C, D, E, F, G };
 
 enum roughness { URBAN, RURAL };
@@ -214,6 +216,74 @@ cos_phi     []      cosine of wind direction in radians
 void wind_components(Components* components, double e_r, double n_r, double e_s, double n_s, double sin_phi, double cos_phi) {
     components->x = (-1.0*(e_r-e_s)*sin_phi - (n_r-n_s)*cos_phi) / 1000.0;
     components->y = (e_r-e_s)*cos_phi - (n_r-n_s)*sin_phi;
+}
+
+/*
+Calculates the plume rise (dH) to add to stack height and a downwind plume offset (Xf), using Briggs model.
+arguments:
+dH    *     [m]     plume rise
+Xf    *     [m]     plume rise offset
+us          [m/s]   wind velocity at stack tip
+vs          [m/s]   stack exit velocity
+ds          [m]     stack tip diameter
+Ts          [K]     stack tip temperature
+Ta          [K]     ambient temperature
+pgcat       []      Pasquill-Gifford stability category
+*/
+void plume_rise(double* dH, double* Xf, double us, double vs, double ds, double Ts, double Ta, char pgcat) {
+    // Compute buoyancy flux
+    double Fb = g * vs * ds * ds * (Ts - Ta) / (4.0 * Ts);
+    // Calculate momentum flux
+    double Fm = vs * vs * ds * ds * Ta / (4.0 * Ts);
+
+    // Stable PG categories
+    if (pgcat == E || pgcat == F) {
+        double eta;
+        if (pgcat == E) {
+            eta = 0.020;
+        } else {
+            eta = 0.035;
+        }
+        double s = g * eta / Ta;
+        double dT = 0.019582 * Ts * vs * sqrt(s);
+        // Buoyancy dominated
+        if ((Ts - Ta) >= dT) {
+            *Xf = 2.0715 * us / sqrt(s);
+            *dH = 2.6 * pow(Fb/(us*s), 0.333333333333);
+            // Momentum dominated
+        } else {
+            *Xf = 0.0;
+            // Calculate unstable/neutral and stable plume rise and take min
+            double prUN = 3.0 * ds * vs / us;
+            double prS = 1.5 * Fm / pow(us*sqrt(s), 0.333333333333);
+            *dH = prUN < prS ? prUN : prS;
+        }
+    // Unstable or neutral PG categories
+    } else {
+        // Unstable or neutral
+        if (Fb < 55.0) {
+            // Check for buoyancy dominated or momentum
+            double dT = 0.0297 * Ts * pow(vs, 0.333333333333) / pow(ds, 0.666666666667);
+            // Buoyancy dominated
+            if ((Ts - Ta) >= dT) {
+                *Xf = 49.0 * pow(Fb, 0.625);
+                *dH = 21.425 * pow(Fb, 0.75) / us;
+                // Momentum dominated
+            } else {
+                *Xf = 0.0;
+                *dH = 3.0 * ds * vs / us;
+            }
+        } else {
+            double dT = 0.00575 * Ts * pow(vs, 0.666666666667) / pow(ds, 0.333333333333);
+            if ((Ts - Ta) >= dT) {
+                *Xf = 119.0 * pow(Fb, 0.4);
+                *dH = 38.71 * pow(Fb, 0.6) / us;
+            } else {
+                *Xf = 0.0;
+                *dH = 3.0 * ds * vs / us;
+            }
+        }
+    }
 }
 
 /*
