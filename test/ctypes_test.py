@@ -1,10 +1,13 @@
 import ctypes
 import math
+import numpy as np
 import unittest
 
 from ctypes import byref, c_char, c_double, c_int, POINTER, Structure
 from pathlib import Path
 
+
+C_DOUBLE_SS = POINTER(POINTER(c_double))
 
 PROJECT_ROOT = Path(__file__).parent.resolve() / '..'
 
@@ -44,6 +47,10 @@ _disperse.plume_rise.restype = None
 _disperse.conc.argtypes = [c_double, c_double, c_double, c_double, c_double, c_double, c_double, c_double]
 _disperse.conc.restype = c_double
 
+# void iter_disp(double **grid)
+_disperse.iter_disp.argtypes = [C_DOUBLE_SS, C_DOUBLE_SS]
+_disperse.iter_disp.restype = None
+
 
 def get_sigma_y(pgcat, x):
     return _disperse.get_sigma_y(c_char(PGCATS[pgcat]), c_double(x))
@@ -67,6 +74,10 @@ def plume_rise(dH, Xf, us, vs, ds, Ts, Ta, pgcat):
 
 def conc(x, y, z, u_z, Q, H, s_y, s_z):
     return _disperse.conc(c_double(x), c_double(y), c_double(z), c_double(u_z), c_double(Q), c_double(H), c_double(s_y), c_double(s_z))
+
+
+def iter_disp(r_grid_np, h_grid_np):
+    return _disperse.iter_disp(r_grid_np.ctypes.data_as(C_DOUBLE_SS), h_grid_np.ctypes.data_as(C_DOUBLE_SS))
 
 
 class TestSigmaY(unittest.TestCase):
@@ -304,5 +315,63 @@ class TestConc(unittest.TestCase):
         self.assertAlmostEqual(test_conc, 1.917230120488e-05)
 
 
+class TestIterDisp(unittest.TestCase):
+    """ Testcase for iter_disp function. """
+
+    def test_1(self):
+        
+        r_grid = np.zeros((250 * 250))
+        h_grid = np.zeros((100 * 250))
+
+        iter_disp(r_grid, h_grid)
+        
+        self.assertAlmostEqual(r_grid[23 * 250 + 14], 6.366502967443e-08)
+        self.assertAlmostEqual(h_grid[18 * 250 + 181], 4.086979994894e-07)
+
+
 if __name__ == '__main__':
     unittest.main()
+
+
+
+
+
+
+
+
+"""
+fn model_run_test() {
+    // Create new *RSDM and populate with fixed values (overwrite defaults)
+    let mut dm = RSDM::new();
+    
+    dm.wspd = 2.0;
+    dm.wdir = 130.0;
+    dm.source.height = 10.0;
+    dm.source.temp = 100.0;
+    dm.pgcat = b'A';
+    dm.hours = 1;
+
+    dm.x_min = -2500;
+    dm.x_max = 2500;
+    dm.y_min = -2500;
+    dm.y_max = 2500;
+    dm.z_min = 0;
+    dm.z_max = 1000;
+    dm.x_spacing = 20;
+    dm.y_spacing = 20;
+    dm.z_spacing = 10;
+    
+    dm.setup_grids();
+           
+    dm.iter_disp(1);
+
+    let grid_ref = 23 * dm.x_points + 14;
+    let value = dm.r_grid[grid_ref];
+    assert!(approx_equal(value, 6.366502967443e-08), value);
+
+    let grid_ref = 18 * dm.x_points + 181;
+    let value = dm.h_grid[grid_ref];
+    assert!(approx_equal(value, 4.086979994894e-07), value);
+}
+
+"""

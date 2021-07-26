@@ -1,4 +1,6 @@
 #include <math.h>
+#include <stdint.h>
+#include <stdio.h>
 
 const double g = 9.80616; // Gravitational constant
 
@@ -10,6 +12,13 @@ typedef struct {
     double x;
     double y;
 } Components;
+
+typedef struct {
+    double u;
+    double phi;
+    //double temp;
+    char pgcat;
+} MetHour;
 
 double sigma_y(double c, double d, double x) {
     double theta = 0.017453293 * (c - d * log(x));
@@ -314,4 +323,97 @@ double conc(double x, double y, double z, double u_z, double Q, double H, double
     if (isnan(r_conc)) return 0.0;
     
     return r_conc;
+}
+
+uint32_t cr_to_linear(uint32_t col, uint32_t row, uint32_t x_points, uint32_t y_points) {
+    uint32_t row_offset = y_points - 1;
+    return x_points * (row_offset - row) + col;
+}
+
+void iter_disp(double* rgrid, double* hgrid) {
+    double source_height = 10.0;
+    double source_temp = 100.0;
+    double source_emission = 1.0;
+
+    double source_velocity = 10.0;
+    double source_diameter = 0.5;
+
+    int hours = 1;
+
+    int x_min = -2500;
+    int x_max = 2500;
+    int y_min = -2500;
+    int y_max = 2500;
+    int z_min = 0;
+    int z_max = 1000;
+    int x_spacing = 20;
+    int y_spacing = 20;
+    int z_spacing = 10;
+    
+    uint32_t x_points = (x_max - x_min) / x_spacing;
+    uint32_t y_points = (y_max - y_min) / y_spacing;
+    uint32_t z_points = (z_max - z_min) / z_spacing;
+
+    MetHour metline;
+    metline.u = 2.0;
+    metline.phi = 130.0 * M_PI / 180.0;
+    metline.pgcat = A;
+    
+    double AMBIENT_TEMP = 293.15; // Fixed ambient temperature [K] (20 C)
+    char roughness = URBAN;
+
+    for (int _; _ < hours; _++) {
+        // Calculate effective wind speed at stack tip (user specified wind speed is for 10 m)
+        double Uz = calc_uz(metline.u, source_height, 10.0, metline.pgcat, roughness);
+        
+        // Calculate plume rise using Briggs equations
+        double Ts = source_temp + 273.15;
+        double dH, Xf;
+        plume_rise(&dH, &Xf, Uz, source_velocity, source_diameter, Ts, AMBIENT_TEMP, metline.pgcat);
+        
+        double H = source_height + dH;
+        double Q = source_emission;
+
+        double sin_phi = sin(metline.phi);
+        double cos_phi = cos(metline.phi);
+
+        // Calculate concentrations for plan view grid (fixed grid height of 0 m)
+        double Yr = y_min;
+        for (uint32_t y = 0; y < y_points; y++) {
+            double Xr = x_min;
+            for (uint32_t x = 0; x < x_points; x++) {
+                if (Uz > 0.5) {
+                    double xx = (-1.0 * Xr * sin_phi - Yr * cos_phi - Xf) / 1000.0;
+                    double yy = Xr * cos_phi - Yr * sin_phi;
+                    
+                    double sig_y = get_sigma_y(metline.pgcat, xx);
+                    double sig_z = get_sigma_z(metline.pgcat, xx);
+                    
+                    uint32_t i = cr_to_linear(x, y, x_points, y_points);
+                    rgrid[i] += (conc(xx, yy, 0.0, Uz, Q, H, sig_y, sig_z) / (double)hours);
+                }
+                Xr += x_spacing;
+            }
+            Yr += y_spacing;
+        }
+
+        // Calculate concentrations for 2d slice showing height profile along plume
+        double Zr = z_min;
+        for (uint32_t z = 0; z < z_points; z++) {
+            double Xr = x_min;
+            for (uint32_t x = 0; x < x_points; x++) {
+                if (Uz > 0.5) {
+                    double xx = (Xr - Xf) / 1000.0;
+                    
+                    double sig_y = get_sigma_y(metline.pgcat, xx);
+                    double sig_z = get_sigma_z(metline.pgcat, xx);
+                    
+                    uint32_t i = cr_to_linear(x, z, x_points, z_points);
+                    hgrid[i] += (conc(xx, 0.0, Zr, Uz, Q, H, sig_y, sig_z) / (double)hours);
+                }
+                Xr += x_spacing;
+            }
+            Zr += z_spacing;
+        }
+    }
 }
