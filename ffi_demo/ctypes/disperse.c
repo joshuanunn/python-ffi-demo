@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 const double g = 9.80616; // Gravitational constant
+const int BANDS = 10;
 
 enum pgcat { A, B, C, D, E, F, G };
 
@@ -325,8 +326,8 @@ double conc(double x, double y, double z, double u_z, double Q, double H, double
     return r_conc;
 }
 
-uint32_t cr_to_linear(uint32_t col, uint32_t row, uint32_t x_points, uint32_t y_points) {
-    uint32_t row_offset = y_points - 1;
+int cr_to_linear(int col, int row, int x_points, int y_points) {
+    int row_offset = y_points - 1;
     return x_points * (row_offset - row) + col;
 }
 
@@ -350,9 +351,9 @@ void iter_disp(double* rgrid, double* hgrid) {
     int y_spacing = 20;
     int z_spacing = 10;
     
-    uint32_t x_points = (x_max - x_min) / x_spacing;
-    uint32_t y_points = (y_max - y_min) / y_spacing;
-    uint32_t z_points = (z_max - z_min) / z_spacing;
+    int x_points = (x_max - x_min) / x_spacing;
+    int y_points = (y_max - y_min) / y_spacing;
+    int z_points = (z_max - z_min) / z_spacing;
 
     MetHour metline;
     metline.u = 2.0;
@@ -379,9 +380,9 @@ void iter_disp(double* rgrid, double* hgrid) {
 
         // Calculate concentrations for plan view grid (fixed grid height of 0 m)
         double Yr = y_min;
-        for (uint32_t y = 0; y < y_points; y++) {
+        for (int y = 0; y < y_points; y++) {
             double Xr = x_min;
-            for (uint32_t x = 0; x < x_points; x++) {
+            for (int x = 0; x < x_points; x++) {
                 if (Uz > 0.5) {
                     double xx = (-1.0 * Xr * sin_phi - Yr * cos_phi - Xf) / 1000.0;
                     double yy = Xr * cos_phi - Yr * sin_phi;
@@ -389,7 +390,7 @@ void iter_disp(double* rgrid, double* hgrid) {
                     double sig_y = get_sigma_y(metline.pgcat, xx);
                     double sig_z = get_sigma_z(metline.pgcat, xx);
                     
-                    uint32_t i = cr_to_linear(x, y, x_points, y_points);
+                    int i = cr_to_linear(x, y, x_points, y_points);
                     rgrid[i] += (conc(xx, yy, 0.0, Uz, Q, H, sig_y, sig_z) / (double)hours);
                 }
                 Xr += x_spacing;
@@ -399,21 +400,49 @@ void iter_disp(double* rgrid, double* hgrid) {
 
         // Calculate concentrations for 2d slice showing height profile along plume
         double Zr = z_min;
-        for (uint32_t z = 0; z < z_points; z++) {
+        for (int z = 0; z < z_points; z++) {
             double Xr = x_min;
-            for (uint32_t x = 0; x < x_points; x++) {
+            for (int x = 0; x < x_points; x++) {
                 if (Uz > 0.5) {
                     double xx = (Xr - Xf) / 1000.0;
                     
                     double sig_y = get_sigma_y(metline.pgcat, xx);
                     double sig_z = get_sigma_z(metline.pgcat, xx);
                     
-                    uint32_t i = cr_to_linear(x, z, x_points, z_points);
+                    int i = cr_to_linear(x, z, x_points, z_points);
                     hgrid[i] += (conc(xx, 0.0, Zr, Uz, Q, H, sig_y, sig_z) / (double)hours);
                 }
                 Xr += x_spacing;
             }
             Zr += z_spacing;
+        }
+    }
+}
+
+void create_image(unsigned char* destgrid, double* grid, int x_points, int y_points) {
+    // Calculate normalised minimum to allow banding
+    double grid_max = 0.0;
+    for (int y=0; y < y_points; y++) {
+        for (int x=0; x < x_points; x++) {
+            int i = cr_to_linear(x, y, x_points, y_points);
+            if (grid[i] > grid_max) {
+                grid_max = grid[i];
+            }
+        }
+    }
+
+    int min_norm = (int)log10(grid_max) - BANDS;
+    
+    // Normalise 2d gridded concentration into BANDS by taking log
+    for (int y=0; y < y_points; y++) {
+        for (int x=0; x < x_points; x++) {
+            int i = cr_to_linear(x, y, x_points, y_points);
+            if (grid[i] > grid_max / 1e10) {
+                unsigned char conc_norm = (int)log10(grid[i]) - min_norm;
+                destgrid[i] = conc_norm;
+            } else {
+                destgrid[i] = 0;
+            }
         }
     }
 }
