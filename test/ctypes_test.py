@@ -14,10 +14,28 @@ C_UCHAR_SS = POINTER(POINTER(c_ubyte))
 C_DOUBLE_SS = POINTER(POINTER(c_double))
 
 PGCATS = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6}
+RESOLUTION = {'LOW': 0, 'MEDIUM': 1, 'HIGH': 2, 'EXTREME': 3}
 ROUGHNESS = {'urban': 0, 'rural': 1}
 
 class Components(Structure):
     _fields_ = ('x', c_double), ('y', c_double)
+
+
+class Domain(Structure):
+    _fields_ = [
+        ('x_min', c_int), ('x_max', c_int),
+        ('y_min', c_int), ('y_max', c_int),
+        ('z_min', c_int), ('z_max', c_int),
+
+        ('x_spacing', c_int),
+        ('y_spacing', c_int),
+        ('z_spacing', c_int),
+
+        ('x_points', c_int),
+        ('y_points', c_int),
+        ('z_points', c_int)
+    ]
+
 
 # Import compiled c code using ctypes
 _disperse = ctypes.CDLL(PROJECT_ROOT / 'build' / 'ctypes' / 'disperse.so')
@@ -56,6 +74,9 @@ _disperse.iter_disp.restype = None
 _disperse.create_image.argtypes = [C_UCHAR_SS, C_DOUBLE_SS, c_int, c_int]
 _disperse.create_image.restype = None
 
+# Domain new_domain(int resolution)
+_disperse.new_domain.argtypes = [c_int]
+_disperse.new_domain.restype = Domain
 
 def get_sigma_y(pgcat, x):
     return _disperse.get_sigma_y(c_char(PGCATS[pgcat]), c_double(x))
@@ -81,8 +102,12 @@ def conc(x, y, z, u_z, Q, H, s_y, s_z):
     return _disperse.conc(c_double(x), c_double(y), c_double(z), c_double(u_z), c_double(Q), c_double(H), c_double(s_y), c_double(s_z))
 
 
-def iter_disp(r_grid_np, h_grid_np):
-    return _disperse.iter_disp(r_grid_np.ctypes.data_as(C_DOUBLE_SS), h_grid_np.ctypes.data_as(C_DOUBLE_SS))
+def new_domain(resolution):
+    return _disperse.new_domain(c_int(RESOLUTION[resolution]))
+
+
+def iter_disp(r_grid_np, h_grid_np, domain):
+    return _disperse.iter_disp(r_grid_np.ctypes.data_as(C_DOUBLE_SS), h_grid_np.ctypes.data_as(C_DOUBLE_SS), byref(domain))
 
 
 def create_image(png_grid_np, grid_np, x_points, y_points):
@@ -329,10 +354,12 @@ class TestIterDisp(unittest.TestCase):
 
     def test_1(self):
         
+        domain = new_domain('MEDIUM')
+
         r_grid = np.zeros((250 * 250))
         h_grid = np.zeros((100 * 250))
 
-        iter_disp(r_grid, h_grid)
+        iter_disp(r_grid, h_grid, domain)
         
         self.assertAlmostEqual(r_grid[23 * 250 + 14], 6.366502967443e-08)
         self.assertAlmostEqual(h_grid[18 * 250 + 181], 4.086979994894e-07)
@@ -342,11 +369,13 @@ class TestCreateImage(unittest.TestCase):
     """ Testcase for create_image function. """
 
     def test_1(self):
-        
+
+        domain = new_domain('MEDIUM')
+
         r_grid = np.zeros((250 * 250))
         h_grid = np.zeros((100 * 250))
 
-        iter_disp(r_grid, h_grid)
+        iter_disp(r_grid, h_grid, domain)
         
         r_grid_image = np.zeros((250 * 250), dtype=np.uint8)
         create_image(r_grid_image, r_grid, 250, 250)
