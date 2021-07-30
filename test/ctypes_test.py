@@ -114,6 +114,12 @@ def create_image(png_grid_np, grid_np, x_points, y_points):
     return _disperse.create_image(png_grid_np.ctypes.data_as(C_UCHAR_SS), grid_np.ctypes.data_as(C_DOUBLE_SS), c_int(x_points), c_int(y_points))
 
 
+def new_grids(domain):
+    r_grid = np.zeros((domain.x_points * domain.y_points))
+    h_grid = np.zeros((domain.x_points * domain.z_points))
+    return r_grid, h_grid
+
+
 class TestSigmaY(unittest.TestCase):
     """ Range of testcases for get_sigma_y function. """
 
@@ -355,9 +361,7 @@ class TestIterDisp(unittest.TestCase):
     def test_1(self):
         
         domain = new_domain('MEDIUM')
-
-        r_grid = np.zeros((250 * 250))
-        h_grid = np.zeros((100 * 250))
+        r_grid, h_grid = new_grids(domain)
 
         iter_disp(r_grid, h_grid, domain)
         
@@ -371,10 +375,8 @@ class TestCreateImage(unittest.TestCase):
     def test_1(self):
 
         domain = new_domain('MEDIUM')
-
-        r_grid = np.zeros((250 * 250))
-        h_grid = np.zeros((100 * 250))
-
+        r_grid, h_grid = new_grids(domain)
+        
         iter_disp(r_grid, h_grid, domain)
         
         r_grid_image = np.zeros((250 * 250), dtype=np.uint8)
