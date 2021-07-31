@@ -37,6 +37,15 @@ class Domain(Structure):
         ('z_points', c_int)
     ]
 
+class Source(Structure):
+    _fields_ = [
+        ('x', c_double), ('y', c_double),
+        ('height', c_double),
+        ('diameter', c_double),
+        ('velocity', c_double),
+        ('temp', c_double),
+        ('emission', c_double)
+    ]
 
 # Import compiled c code using ctypes
 _disperse = ctypes.CDLL(PROJECT_ROOT / 'build' / 'ctypes' / 'disperse.so')
@@ -67,8 +76,8 @@ _disperse.plume_rise.restype = None
 _disperse.conc.argtypes = [c_double, c_double, c_double, c_double, c_double, c_double, c_double, c_double]
 _disperse.conc.restype = c_double
 
-# void iter_disp(double* rgrid, double* hgrid)
-_disperse.iter_disp.argtypes = [C_DOUBLE_SS, C_DOUBLE_SS]
+# void iter_disp(double* rgrid, double* hgrid, Domain* domain, Source* source)
+_disperse.iter_disp.argtypes = [C_DOUBLE_SS, C_DOUBLE_SS, POINTER(Domain), POINTER(Source)]
 _disperse.iter_disp.restype = None
 
 # void create_image(unsigned char* destgrid, double* grid, Domain* domain, bool vertical)
@@ -78,6 +87,10 @@ _disperse.create_image.restype = None
 # Domain new_domain(int resolution)
 _disperse.new_domain.argtypes = [c_int]
 _disperse.new_domain.restype = Domain
+
+# Source new_source()
+_disperse.new_source.argtypes = None
+_disperse.new_source.restype = Source
 
 def get_sigma_y(pgcat, x):
     return _disperse.get_sigma_y(c_char(PGCATS[pgcat]), c_double(x))
@@ -107,8 +120,12 @@ def new_domain(resolution):
     return _disperse.new_domain(c_int(RESOLUTION[resolution]))
 
 
-def iter_disp(r_grid_np, h_grid_np, domain):
-    return _disperse.iter_disp(r_grid_np.ctypes.data_as(C_DOUBLE_SS), h_grid_np.ctypes.data_as(C_DOUBLE_SS), byref(domain))
+def new_source():
+    return _disperse.new_source()
+
+
+def iter_disp(r_grid_np, h_grid_np, domain, source):
+    return _disperse.iter_disp(r_grid_np.ctypes.data_as(C_DOUBLE_SS), h_grid_np.ctypes.data_as(C_DOUBLE_SS), byref(domain), byref(source))
 
 
 def create_image(png_grid_np, grid_np, domain, gridtype):
@@ -368,9 +385,17 @@ class TestIterDisp(unittest.TestCase):
     def test_1(self):
         
         domain = new_domain('MEDIUM')
+        source = new_source()
+
+        source.height = 10.0
+        source.temp = 100.0
+        source.emission = 1.0
+        source.velocity = 10.0
+        source.diameter = 0.5
+
         r_grid, h_grid = new_grids(domain)
 
-        iter_disp(r_grid, h_grid, domain)
+        iter_disp(r_grid, h_grid, domain, source)
         
         self.assertAlmostEqual(r_grid[23 * 250 + 14], 6.366502967443e-08)
         self.assertAlmostEqual(h_grid[18 * 250 + 181], 4.086979994894e-07)
@@ -382,9 +407,17 @@ class TestCreateImage(unittest.TestCase):
     def test_1(self):
 
         domain = new_domain('MEDIUM')
+        source = new_source()
+
+        source.height = 10.0
+        source.temp = 100.0
+        source.emission = 1.0
+        source.velocity = 10.0
+        source.diameter = 0.5
+
         r_grid, h_grid = new_grids(domain)
         
-        iter_disp(r_grid, h_grid, domain)
+        iter_disp(r_grid, h_grid, domain, source)
         
         r_grid_image, h_grid_image = new_images(domain)
         create_image(r_grid_image, r_grid, domain, 'PLAN')

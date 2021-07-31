@@ -81,6 +81,30 @@ Domain new_domain(int resolution) {
     return domain;
 }
 
+// Source defines the stack (emission source) parameters
+typedef struct {
+    double x, y;        // Stack location (m)
+    double height;      // Stack height (m)
+    double diameter;    // Stack diameter (m)
+    double velocity;    // Plume velocity at stack tip (m/s)
+    double temp;        // Plume temperature (C)
+    double emission;    // Stack emission rate (g/s)
+} Source;
+
+Source new_source(void) {
+    Source source = {
+        .x = 0.0,
+        .y = 0.0,
+        .height = 50.0,
+        .diameter = 0.5,
+        .velocity = 10.0,
+        .temp = 60.0,
+        .emission = 1.0,
+    };
+
+    return source;
+}
+
 double sigma_y(double c, double d, double x) {
     double theta = 0.017453293 * (c - d * log(x));
     return 465.11628 * x * tan(theta);
@@ -391,13 +415,7 @@ int cr_to_linear(int col, int row, int x_points, int y_points) {
     return x_points * (row_offset - row) + col;
 }
 
-void iter_disp(double* rgrid, double* hgrid, Domain* domain) {
-    double source_height = 10.0;
-    double source_temp = 100.0;
-    double source_emission = 1.0;
-
-    double source_velocity = 10.0;
-    double source_diameter = 0.5;
+void iter_disp(double* rgrid, double* hgrid, Domain* domain, Source* source) {
 
     int hours = 1;
     
@@ -411,15 +429,15 @@ void iter_disp(double* rgrid, double* hgrid, Domain* domain) {
 
     for (int _; _ < hours; _++) {
         // Calculate effective wind speed at stack tip (user specified wind speed is for 10 m)
-        double Uz = calc_uz(metline.u, source_height, 10.0, metline.pgcat, roughness);
+        double Uz = calc_uz(metline.u, source->height, 10.0, metline.pgcat, roughness);
         
         // Calculate plume rise using Briggs equations
-        double Ts = source_temp + 273.15;
+        double Ts = source->temp + 273.15;
         double dH, Xf;
-        plume_rise(&dH, &Xf, Uz, source_velocity, source_diameter, Ts, AMBIENT_TEMP, metline.pgcat);
+        plume_rise(&dH, &Xf, Uz, source->velocity, source->diameter, Ts, AMBIENT_TEMP, metline.pgcat);
         
-        double H = source_height + dH;
-        double Q = source_emission;
+        double H = source->height + dH;
+        double Q = source->emission;
 
         double sin_phi = sin(metline.phi);
         double cos_phi = cos(metline.phi);
