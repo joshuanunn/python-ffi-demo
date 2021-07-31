@@ -8,6 +8,7 @@ const int BANDS = 10;
 
 enum pgcat { A, B, C, D, E, F, G };
 enum resolution { LOW, MEDIUM, HIGH, EXTREME };
+enum gridtype { PLAN, SECTION };
 enum roughness { URBAN, RURAL };
 
 typedef struct {
@@ -464,7 +465,11 @@ void iter_disp(double* rgrid, double* hgrid, Domain* domain) {
     }
 }
 
-void create_image(unsigned char* destgrid, double* grid, int x_points, int y_points) {
+void create_image(unsigned char* destgrid, double* grid, Domain* domain, int gridtype) {
+    int x_points = domain->x_points;
+    int y_points = domain->y_points;
+    if (gridtype == SECTION) y_points = domain->z_points;
+    
     // Calculate normalised minimum to allow banding
     double grid_max = 0.0;
     for (int y=0; y < y_points; y++) {

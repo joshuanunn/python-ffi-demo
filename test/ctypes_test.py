@@ -15,6 +15,7 @@ C_DOUBLE_SS = POINTER(POINTER(c_double))
 
 PGCATS = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6}
 RESOLUTION = {'LOW': 0, 'MEDIUM': 1, 'HIGH': 2, 'EXTREME': 3}
+GRIDTYPE = {'PLAN': 0, 'SECTION': 1}
 ROUGHNESS = {'urban': 0, 'rural': 1}
 
 class Components(Structure):
@@ -70,8 +71,8 @@ _disperse.conc.restype = c_double
 _disperse.iter_disp.argtypes = [C_DOUBLE_SS, C_DOUBLE_SS]
 _disperse.iter_disp.restype = None
 
-# void create_image(unsigned char* destgrid, double* grid, int x_points, int y_points)
-_disperse.create_image.argtypes = [C_UCHAR_SS, C_DOUBLE_SS, c_int, c_int]
+# void create_image(unsigned char* destgrid, double* grid, Domain* domain, bool vertical)
+_disperse.create_image.argtypes = [C_UCHAR_SS, C_DOUBLE_SS, POINTER(Domain), c_int]
 _disperse.create_image.restype = None
 
 # Domain new_domain(int resolution)
@@ -110,14 +111,20 @@ def iter_disp(r_grid_np, h_grid_np, domain):
     return _disperse.iter_disp(r_grid_np.ctypes.data_as(C_DOUBLE_SS), h_grid_np.ctypes.data_as(C_DOUBLE_SS), byref(domain))
 
 
-def create_image(png_grid_np, grid_np, x_points, y_points):
-    return _disperse.create_image(png_grid_np.ctypes.data_as(C_UCHAR_SS), grid_np.ctypes.data_as(C_DOUBLE_SS), c_int(x_points), c_int(y_points))
+def create_image(png_grid_np, grid_np, domain, gridtype):
+    return _disperse.create_image(png_grid_np.ctypes.data_as(C_UCHAR_SS), grid_np.ctypes.data_as(C_DOUBLE_SS), byref(domain), c_int(GRIDTYPE[gridtype]))
 
 
 def new_grids(domain):
-    r_grid = np.zeros((domain.x_points * domain.y_points))
-    h_grid = np.zeros((domain.x_points * domain.z_points))
+    r_grid = np.zeros((domain.x_points * domain.y_points), dtype=np.float64)
+    h_grid = np.zeros((domain.x_points * domain.z_points), dtype=np.float64)
     return r_grid, h_grid
+
+
+def new_images(domain):
+    r_image = np.zeros((domain.x_points * domain.y_points), dtype=np.uint8)
+    h_image = np.zeros((domain.x_points * domain.z_points), dtype=np.uint8)
+    return r_image, h_image
 
 
 class TestSigmaY(unittest.TestCase):
@@ -379,11 +386,9 @@ class TestCreateImage(unittest.TestCase):
         
         iter_disp(r_grid, h_grid, domain)
         
-        r_grid_image = np.zeros((250 * 250), dtype=np.uint8)
-        create_image(r_grid_image, r_grid, 250, 250)
-
-        h_grid_image = np.zeros((100 * 250), dtype=np.uint8)
-        create_image(h_grid_image, h_grid, 100, 250)
+        r_grid_image, h_grid_image = new_images(domain)
+        create_image(r_grid_image, r_grid, domain, 'PLAN')
+        create_image(h_grid_image, h_grid, domain, 'SECTION')
 
         self.assertAlmostEqual(r_grid_image[48 * 250 + 17], 6)
         self.assertAlmostEqual(r_grid_image[87 * 250 + 80], 8)
