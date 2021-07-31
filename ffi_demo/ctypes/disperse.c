@@ -2,6 +2,10 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+
+// Seed random number generator
+// srand (time ( NULL));
 
 const double g = 9.80616; // Gravitational constant
 const int BANDS = 10;
@@ -17,11 +21,24 @@ typedef struct {
 } Components;
 
 typedef struct {
-    double u;
-    double phi;
+    int hours;
+    double wspd;
+    double wdir;    // Wind direction (radians)
     //double temp;
     char pgcat;
 } MetHour;
+
+// MetHour defines the initial meteorological conditions and number of random hours
+MetHour new_methour(void) {
+    MetHour methour = {
+        .hours = 20,
+        .wspd = 5.0,
+        .wdir = 235.0 * M_PI / 180.0,
+        .pgcat = C,
+    };
+
+    return methour;
+}
 
 // Domain defines the spatial extents and resolution
 typedef struct {
@@ -410,37 +427,40 @@ double conc(double x, double y, double z, double u_z, double Q, double H, double
     return r_conc;
 }
 
+void gen_met(MetHour* met) {
+    // Generate single random hour based on current values
+    // Generate a random windspeed in range of 1-50 m/s
+    met->wspd = (double) rand() / RAND_MAX * 49 + 1;
+    // Generate random wind direction 0 - 359 degrees and convert to radians
+    met->wdir = ((double) rand() / RAND_MAX * 359) * M_PI / 180.0;
+    // Select random PG class
+    met->pgcat = rand() % 7; // A to F
+}
+
 int cr_to_linear(int col, int row, int x_points, int y_points) {
     int row_offset = y_points - 1;
     return x_points * (row_offset - row) + col;
 }
 
-void iter_disp(double* rgrid, double* hgrid, Domain* domain, Source* source) {
-
-    int hours = 1;
-    
-    MetHour metline;
-    metline.u = 2.0;
-    metline.phi = 130.0 * M_PI / 180.0;
-    metline.pgcat = A;
+void iter_disp(double* rgrid, double* hgrid, Domain* domain, Source* source, MetHour* met) {
     
     double AMBIENT_TEMP = 293.15; // Fixed ambient temperature [K] (20 C)
     char roughness = URBAN;
 
-    for (int _; _ < hours; _++) {
+    for (int hour; hour < met->hours; hour++) {
         // Calculate effective wind speed at stack tip (user specified wind speed is for 10 m)
-        double Uz = calc_uz(metline.u, source->height, 10.0, metline.pgcat, roughness);
+        double Uz = calc_uz(met->wspd, source->height, 10.0, met->pgcat, roughness);
         
         // Calculate plume rise using Briggs equations
         double Ts = source->temp + 273.15;
         double dH, Xf;
-        plume_rise(&dH, &Xf, Uz, source->velocity, source->diameter, Ts, AMBIENT_TEMP, metline.pgcat);
+        plume_rise(&dH, &Xf, Uz, source->velocity, source->diameter, Ts, AMBIENT_TEMP, met->pgcat);
         
         double H = source->height + dH;
         double Q = source->emission;
 
-        double sin_phi = sin(metline.phi);
-        double cos_phi = cos(metline.phi);
+        double sin_phi = sin(met->wdir);
+        double cos_phi = cos(met->wdir);
 
         // Calculate concentrations for plan view grid (fixed grid height of 0 m)
         double Yr = domain->y_min;
@@ -451,11 +471,11 @@ void iter_disp(double* rgrid, double* hgrid, Domain* domain, Source* source) {
                     double xx = (-1.0 * Xr * sin_phi - Yr * cos_phi - Xf) / 1000.0;
                     double yy = Xr * cos_phi - Yr * sin_phi;
                     
-                    double sig_y = get_sigma_y(metline.pgcat, xx);
-                    double sig_z = get_sigma_z(metline.pgcat, xx);
+                    double sig_y = get_sigma_y(met->pgcat, xx);
+                    double sig_z = get_sigma_z(met->pgcat, xx);
                     
                     int i = cr_to_linear(x, y, domain->x_points, domain->y_points);
-                    rgrid[i] += (conc(xx, yy, 0.0, Uz, Q, H, sig_y, sig_z) / (double)hours);
+                    rgrid[i] += (conc(xx, yy, 0.0, Uz, Q, H, sig_y, sig_z) / (double)met->hours);
                 }
                 Xr += domain->x_spacing;
             }
@@ -470,16 +490,19 @@ void iter_disp(double* rgrid, double* hgrid, Domain* domain, Source* source) {
                 if (Uz > 0.5) {
                     double xx = (Xr - Xf) / 1000.0;
                     
-                    double sig_y = get_sigma_y(metline.pgcat, xx);
-                    double sig_z = get_sigma_z(metline.pgcat, xx);
+                    double sig_y = get_sigma_y(met->pgcat, xx);
+                    double sig_z = get_sigma_z(met->pgcat, xx);
                     
                     int i = cr_to_linear(x, z, domain->x_points, domain->z_points);
-                    hgrid[i] += (conc(xx, 0.0, Zr, Uz, Q, H, sig_y, sig_z) / (double)hours);
+                    hgrid[i] += (conc(xx, 0.0, Zr, Uz, Q, H, sig_y, sig_z) / (double)met->hours);
                 }
                 Xr += domain->x_spacing;
             }
             Zr += domain->z_spacing;
         }
+
+        // Generate a new random met hour
+        gen_met(met);
     }
 }
 

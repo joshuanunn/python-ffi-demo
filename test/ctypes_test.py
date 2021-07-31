@@ -22,6 +22,15 @@ class Components(Structure):
     _fields_ = ('x', c_double), ('y', c_double)
 
 
+class MetHour(Structure):
+    _fields_ = [
+        ('hours', c_int),
+        ('wspd', c_double),
+        ('wdir', c_double),
+        #('temp', c_double),
+        ('pgcat', c_int),
+    ]
+
 class Domain(Structure):
     _fields_ = [
         ('x_min', c_int), ('x_max', c_int),
@@ -76,13 +85,17 @@ _disperse.plume_rise.restype = None
 _disperse.conc.argtypes = [c_double, c_double, c_double, c_double, c_double, c_double, c_double, c_double]
 _disperse.conc.restype = c_double
 
-# void iter_disp(double* rgrid, double* hgrid, Domain* domain, Source* source)
-_disperse.iter_disp.argtypes = [C_DOUBLE_SS, C_DOUBLE_SS, POINTER(Domain), POINTER(Source)]
+# void iter_disp(double* rgrid, double* hgrid, Domain* domain, Source* source, MetHour* met)
+_disperse.iter_disp.argtypes = [C_DOUBLE_SS, C_DOUBLE_SS, POINTER(Domain), POINTER(Source), POINTER(MetHour)]
 _disperse.iter_disp.restype = None
 
 # void create_image(unsigned char* destgrid, double* grid, Domain* domain, bool vertical)
 _disperse.create_image.argtypes = [C_UCHAR_SS, C_DOUBLE_SS, POINTER(Domain), c_int]
 _disperse.create_image.restype = None
+
+# MetHour new_methour()
+_disperse.new_methour.argtypes = None
+_disperse.new_methour.restype = MetHour
 
 # Domain new_domain(int resolution)
 _disperse.new_domain.argtypes = [c_int]
@@ -116,6 +129,10 @@ def conc(x, y, z, u_z, Q, H, s_y, s_z):
     return _disperse.conc(c_double(x), c_double(y), c_double(z), c_double(u_z), c_double(Q), c_double(H), c_double(s_y), c_double(s_z))
 
 
+def new_methour():
+    return _disperse.new_methour()
+
+
 def new_domain(resolution):
     return _disperse.new_domain(c_int(RESOLUTION[resolution]))
 
@@ -124,8 +141,8 @@ def new_source():
     return _disperse.new_source()
 
 
-def iter_disp(r_grid_np, h_grid_np, domain, source):
-    return _disperse.iter_disp(r_grid_np.ctypes.data_as(C_DOUBLE_SS), h_grid_np.ctypes.data_as(C_DOUBLE_SS), byref(domain), byref(source))
+def iter_disp(r_grid_np, h_grid_np, domain, source, methour):
+    return _disperse.iter_disp(r_grid_np.ctypes.data_as(C_DOUBLE_SS), h_grid_np.ctypes.data_as(C_DOUBLE_SS), byref(domain), byref(source), byref(methour))
 
 
 def create_image(png_grid_np, grid_np, domain, gridtype):
@@ -386,16 +403,22 @@ class TestIterDisp(unittest.TestCase):
         
         domain = new_domain('MEDIUM')
         source = new_source()
-
+        methour = new_methour()
+        
         source.height = 10.0
         source.temp = 100.0
         source.emission = 1.0
         source.velocity = 10.0
         source.diameter = 0.5
 
+        methour.hours = 1
+        methour.wspd = 2.0
+        methour.wdir = 130.0 * math.pi / 180.0
+        methour.pgcat = PGCATS['A']
+
         r_grid, h_grid = new_grids(domain)
 
-        iter_disp(r_grid, h_grid, domain, source)
+        iter_disp(r_grid, h_grid, domain, source, methour)
         
         self.assertAlmostEqual(r_grid[23 * 250 + 14], 6.366502967443e-08)
         self.assertAlmostEqual(h_grid[18 * 250 + 181], 4.086979994894e-07)
@@ -408,6 +431,7 @@ class TestCreateImage(unittest.TestCase):
 
         domain = new_domain('MEDIUM')
         source = new_source()
+        methour = new_methour()
 
         source.height = 10.0
         source.temp = 100.0
@@ -415,9 +439,14 @@ class TestCreateImage(unittest.TestCase):
         source.velocity = 10.0
         source.diameter = 0.5
 
+        methour.hours = 1
+        methour.wspd = 2.0
+        methour.wdir = 130.0 * math.pi / 180.0
+        methour.pgcat = PGCATS['A']
+
         r_grid, h_grid = new_grids(domain)
         
-        iter_disp(r_grid, h_grid, domain, source)
+        iter_disp(r_grid, h_grid, domain, source, methour)
         
         r_grid_image, h_grid_image = new_images(domain)
         create_image(r_grid_image, r_grid, domain, 'PLAN')
