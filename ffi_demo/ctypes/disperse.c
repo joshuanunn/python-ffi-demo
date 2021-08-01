@@ -4,9 +4,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-// Seed random number generator
-// srand (time ( NULL));
-
 const double g = 9.80616; // Gravitational constant
 const int BANDS = 10;
 
@@ -444,6 +441,9 @@ int cr_to_linear(int col, int row, int x_points, int y_points) {
 
 void iter_disp(double* rgrid, double* hgrid, Domain* domain, Source* source, MetHour* met) {
     
+    // Seed random number generator
+    srand(time(NULL));
+
     double AMBIENT_TEMP = 293.15; // Fixed ambient temperature [K] (20 C)
     char roughness = URBAN;
 
