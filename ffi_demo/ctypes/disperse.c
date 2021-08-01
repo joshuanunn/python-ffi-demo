@@ -528,7 +528,7 @@ void create_image(unsigned char* destgrid, double* grid, Domain* domain, int gri
     for (int y=0; y < y_points; y++) {
         for (int x=0; x < x_points; x++) {
             int i = cr_to_linear(x, y, x_points, y_points);
-            if (grid[i] > grid_max / 1e10) {
+            if (grid[i] > grid_max / pow(10.0, BANDS)) {
                 unsigned char conc_norm = (int)log10(grid[i]) - min_norm;
                 destgrid[i] = conc_norm;
             } else {
