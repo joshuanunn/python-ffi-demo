@@ -9,9 +9,9 @@ TARGET = disperse
 
 all: $(TARGET)
 
-$(TARGET): ./ffi_demo/ctypes/$(TARGET).c
-	$(CC) $(CFLAGS) -o ./build/ctypes/$(TARGET).o -c ./ffi_demo/ctypes/$(TARGET).c
-	$(CC) -shared -o ./build/ctypes/$(TARGET).so ./build/ctypes/$(TARGET).o
+$(TARGET): ./ffi_demo_ctypes/src/$(TARGET).c
+	$(CC) $(CFLAGS) -o ./ffi_demo_ctypes/src/$(TARGET).o -c ./ffi_demo_ctypes/src/$(TARGET).c
+	$(CC) -shared -o ./ffi_demo_ctypes/core/$(TARGET).so ./ffi_demo_ctypes/src/$(TARGET).o
 
 test/ctypes:
-	python3 ./test/ctypes_test.py
+	python3 -m ffi_demo_ctypes.tests.runtests
