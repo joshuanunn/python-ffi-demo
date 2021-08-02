@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <time.h>
 
-const double g = 9.80616; // Gravitational constant
-const int BANDS = 10;
+#define G_CONST 9.80616 // Gravitational constant
+#define BANDS 10        // Number of bands for image generation
 
 enum pgcat { A, B, C, D, E, F, G };
 enum resolution { LOW, MEDIUM, HIGH, EXTREME };
@@ -321,7 +321,7 @@ n_s         [m]     source (stack) northing
 sin_phi     []      sine of wind direction in radians
 cos_phi     []      cosine of wind direction in radians
 */
-void wind_components(Components* components, double e_r, double n_r, double e_s, double n_s, double sin_phi, double cos_phi) {
+void wind_components(Components *components, double e_r, double n_r, double e_s, double n_s, double sin_phi, double cos_phi) {
     components->x = (-1.0*(e_r-e_s)*sin_phi - (n_r-n_s)*cos_phi) / 1000.0;
     components->y = (e_r-e_s)*cos_phi - (n_r-n_s)*sin_phi;
 }
@@ -338,9 +338,9 @@ Ts          [K]     stack tip temperature
 Ta          [K]     ambient temperature
 pgcat       []      Pasquill-Gifford stability category
 */
-void plume_rise(double* dH, double* Xf, double us, double vs, double ds, double Ts, double Ta, char pgcat) {
+void plume_rise(double *dH, double *Xf, double us, double vs, double ds, double Ts, double Ta, char pgcat) {
     // Compute buoyancy flux
-    double Fb = g * vs * ds * ds * (Ts - Ta) / (4.0 * Ts);
+    double Fb = G_CONST * vs * ds * ds * (Ts - Ta) / (4.0 * Ts);
     // Calculate momentum flux
     double Fm = vs * vs * ds * ds * Ta / (4.0 * Ts);
 
@@ -352,7 +352,7 @@ void plume_rise(double* dH, double* Xf, double us, double vs, double ds, double 
         } else {
             eta = 0.035;
         }
-        double s = g * eta / Ta;
+        double s = G_CONST * eta / Ta;
         double dT = 0.019582 * Ts * vs * sqrt(s);
         // Buoyancy dominated
         if ((Ts - Ta) >= dT) {
@@ -424,7 +424,7 @@ double conc(double x, double y, double z, double u_z, double Q, double H, double
     return r_conc;
 }
 
-void gen_met(MetHour* met) {
+void gen_met(MetHour *met) {
     // Generate single random hour based on current values
     // Generate a random windspeed in range of 1-50 m/s
     met->wspd = (double) rand() / RAND_MAX * 49 + 1;
@@ -439,7 +439,7 @@ int cr_to_linear(int col, int row, int x_points, int y_points) {
     return x_points * (row_offset - row) + col;
 }
 
-void iter_disp(double* rgrid, double* hgrid, Domain* domain, Source* source, MetHour* met) {
+void iter_disp(double *rgrid, double *hgrid, Domain *domain, Source *source, MetHour *met) {
     
     // Seed random number generator
     srand(time(NULL));
@@ -506,7 +506,7 @@ void iter_disp(double* rgrid, double* hgrid, Domain* domain, Source* source, Met
     }
 }
 
-void create_image(unsigned char* destgrid, double* grid, Domain* domain, int gridtype) {
+void create_image(unsigned char *destgrid, double *grid, Domain *domain, int gridtype) {
     int x_points = domain->x_points;
     int y_points = domain->y_points;
     if (gridtype == SECTION) y_points = domain->z_points;
@@ -524,7 +524,7 @@ void create_image(unsigned char* destgrid, double* grid, Domain* domain, int gri
 
     int min_norm = (int)log10(grid_max) - BANDS;
     
-    // Normalise 2d gridded concentration into BANDS by taking log
+    // Normalise 2d gridded concentration into bands by taking log
     for (int y=0; y < y_points; y++) {
         for (int x=0; x < x_points; x++) {
             int i = cr_to_linear(x, y, x_points, y_points);
