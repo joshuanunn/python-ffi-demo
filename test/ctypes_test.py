@@ -18,9 +18,6 @@ RESOLUTION = {'LOW': 0, 'MEDIUM': 1, 'HIGH': 2, 'EXTREME': 3}
 GRIDTYPE = {'PLAN': 0, 'SECTION': 1}
 ROUGHNESS = {'urban': 0, 'rural': 1}
 
-class Components(Structure):
-    _fields_ = ('x', c_double), ('y', c_double)
-
 
 class MetHour(Structure):
     _fields_ = [
@@ -72,10 +69,6 @@ _disperse.get_sigma_z.restype = c_double
 # double calc_uz(double uz_ref, double z, double z_ref, char pgcat, char roughness)
 _disperse.calc_uz.argtypes = [c_double, c_double, c_double, c_char, c_char]
 _disperse.calc_uz.restype = c_double
-
-# void wind_components(double e_r, double n_r, double e_s, double n_s, double sin_phi, double cos_phi)
-_disperse.wind_components.argtypes = [POINTER(Components), c_double, c_double, c_double, c_double, c_double, c_double]
-_disperse.wind_components.restype = None
 
 # void plume_rise(double* dH, double* Xf, double us, double vs, double ds, double Ts, double Ta, char pgcat)
 _disperse.plume_rise.argtypes = [POINTER(c_double), POINTER(c_double), c_double, c_double, c_double, c_double, c_double, c_char]
@@ -301,25 +294,6 @@ class TestSigmaZ(unittest.TestCase):
     def test_26(self):
         # stability class F, 54km downwind
         self.assertAlmostEqual(get_sigma_z('F', 54.0), 80.882017663045)
-
-
-class TestWindComponents(unittest.TestCase):
-    """ Testcase for wind_components function. """
-
-    def test_1(self):
-        
-        compenents = Components()
-        
-        source_x = -2.0
-        source_y = -3.0
-        
-        sin_phi = math.sin(math.radians(200.0))
-        cos_phi = math.cos(math.radians(200.0))
-        
-        wind_components(compenents, 10.0, 10.0, source_x, source_y, sin_phi, cos_phi)
-        
-        self.assertAlmostEqual(compenents.x, 0.016320245790)
-        self.assertAlmostEqual(compenents.y, -6.8300495861972)        
 
 
 class TestCalcUz(unittest.TestCase):

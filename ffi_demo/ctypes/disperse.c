@@ -13,11 +13,6 @@ enum gridtype { PLAN, SECTION };
 enum roughness { URBAN, RURAL };
 
 typedef struct {
-    double x;
-    double y;
-} Components;
-
-typedef struct {
     int hours;
     double wspd;
     double wdir;    // Wind direction (radians)
@@ -306,24 +301,6 @@ double calc_uz(double uz_ref, double z, double z_ref, char pgcat, char roughness
     }
 
     return uz_ref * pow(z/z_ref, p);
-}
-
-/*
-Calculate the downwind (x) and crosswind (y) plume components from rectangular coordinates.
-arguments:
-components (pointer to struct)
-  -> x      [km]    downwind plume receptor distance
-  -> y      [m]     crosswind plume receptor distance
-e_r         [m]     receptor easting
-n_r         [m]     receptor northing
-e_s         [m]     source (stack) easting
-n_s         [m]     source (stack) northing
-sin_phi     []      sine of wind direction in radians
-cos_phi     []      cosine of wind direction in radians
-*/
-void wind_components(Components *components, double e_r, double n_r, double e_s, double n_s, double sin_phi, double cos_phi) {
-    components->x = (-1.0*(e_r-e_s)*sin_phi - (n_r-n_s)*cos_phi) / 1000.0;
-    components->y = (e_r-e_s)*cos_phi - (n_r-n_s)*sin_phi;
 }
 
 /*
