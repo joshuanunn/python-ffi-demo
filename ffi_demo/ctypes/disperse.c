@@ -58,7 +58,7 @@ typedef struct {
 } Domain;
 
 Domain new_domain(int resolution) {    
-    int spacing = 5;
+    int spacing = 10;
     
     switch (resolution) {
         case LOW:
