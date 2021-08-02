@@ -7,6 +7,16 @@
 #define G_CONST 9.80616 // Gravitational constant
 #define BANDS 10        // Number of bands for image generation
 
+#define XR_MIN -2500
+#define XR_MAX 2500
+#define YR_MIN -2500
+#define YR_MAX 2500
+#define XH_MIN 0
+#define XH_MAX 2500
+#define ZH_MIN 0
+#define ZH_MAX 2500
+
+
 enum pgcat { A, B, C, D, E, F, G };
 enum resolution { LOW, MEDIUM, HIGH, EXTREME };
 enum gridtype { PLAN, SECTION };
@@ -35,56 +45,50 @@ MetHour new_methour(void) {
 // Domain defines the spatial extents and resolution
 typedef struct {
     // min, max grid extents and spacing (m)
-    int x_min, x_max;
-    int y_min, y_max;
-    int z_min, z_max;
+    int xr_min, xr_max;
+    int yr_min, yr_max;
+    int xh_min, xh_max;
+    int zh_min, zh_max;
 
-    int x_spacing, y_spacing, z_spacing;
-    int x_points, y_points, z_points;
+    int xr_spacing, yr_spacing;
+    int xh_spacing, zh_spacing;
+    
+    int xr_points, yr_points;
+    int xh_points, zh_points;
 } Domain;
 
 Domain new_domain(int resolution) {    
-    int h_min = -2500;
-    int h_max = 2500;
-    int v_min = 0;
-    int v_max = 1000;
-
-    int h_spacing;
-    int v_spacing;
+    int spacing = 5;
     
     switch (resolution) {
         case LOW:
-            h_spacing = 50;
-            v_spacing = 25;
+            spacing = 50;
             break;
         case MEDIUM:
-            h_spacing = 20;
-            v_spacing = 10;
+            spacing = 20;
             break;
         case HIGH:
-            h_spacing = 10;
-            v_spacing = 5;
+            spacing = 10;
             break;
         case EXTREME:
-            h_spacing = 2;
-            v_spacing = 1;
-            break;
-        default:
-            exit(EXIT_FAILURE);
+            spacing = 2;
     }
 
     Domain domain = {
-        .x_min = h_min, .x_max = h_max,
-        .y_min = h_min, .y_max = h_max,
-        .z_min = v_min, .z_max = v_max,
+        .xr_min = XR_MIN, .xr_max = XR_MAX,
+        .yr_min = YR_MIN, .yr_max = YR_MAX,
+        .xh_min = XH_MIN, .xh_max = XH_MAX,
+        .zh_min = ZH_MIN, .zh_max = ZH_MAX,
         
-        .x_spacing = h_spacing,
-        .y_spacing = h_spacing,
-        .z_spacing = v_spacing,
+        .xr_spacing = spacing,
+        .yr_spacing = spacing,
+        .xh_spacing = spacing,
+        .zh_spacing = spacing,
         
-        .x_points = (h_max - h_min) / h_spacing,
-        .y_points = (h_max - h_min) / h_spacing,
-        .z_points = (v_max - v_min) / v_spacing,
+        .xr_points = (XR_MAX - XR_MIN) / spacing,
+        .yr_points = (YR_MAX - YR_MIN) / spacing,
+        .xh_points = (XH_MAX - XH_MIN) / spacing,
+        .zh_points = (ZH_MAX - ZH_MIN) / spacing,
     };
 
     return domain;
@@ -440,10 +444,10 @@ void iter_disp(double *rgrid, double *hgrid, Domain *domain, Source *source, Met
         double cos_phi = cos(met->wdir);
 
         // Calculate concentrations for plan view grid (fixed grid height of 0 m)
-        double Yr = domain->y_min;
-        for (int y = 0; y < domain->y_points; y++) {
-            double Xr = domain->x_min;
-            for (int x = 0; x < domain->x_points; x++) {
+        double Yr = domain->yr_min;
+        for (int y = 0; y < domain->yr_points; y++) {
+            double Xr = domain->xr_min;
+            for (int x = 0; x < domain->xr_points; x++) {
                 if (Uz > 0.5) {
                     double xx = (-1.0 * Xr * sin_phi - Yr * cos_phi - Xf) / 1000.0;
                     double yy = Xr * cos_phi - Yr * sin_phi;
@@ -451,31 +455,31 @@ void iter_disp(double *rgrid, double *hgrid, Domain *domain, Source *source, Met
                     double sig_y = get_sigma_y(met->pgcat, xx);
                     double sig_z = get_sigma_z(met->pgcat, xx);
                     
-                    int i = cr_to_linear(x, y, domain->x_points, domain->y_points);
+                    int i = cr_to_linear(x, y, domain->xr_points, domain->yr_points);
                     rgrid[i] += (conc(xx, yy, 0.0, Uz, Q, H, sig_y, sig_z) / (double)met->hours);
                 }
-                Xr += domain->x_spacing;
+                Xr += domain->xr_spacing;
             }
-            Yr += domain->y_spacing;
+            Yr += domain->yr_spacing;
         }
 
         // Calculate concentrations for 2d slice showing height profile along plume
-        double Zr = domain->z_min;
-        for (int z = 0; z < domain->z_points; z++) {
-            double Xr = domain->x_min;
-            for (int x = 0; x < domain->x_points; x++) {
+        double Zr = domain->zh_min;
+        for (int z = 0; z < domain->zh_points; z++) {
+            double Xr = domain->xh_min;
+            for (int x = 0; x < domain->xh_points; x++) {
                 if (Uz > 0.5) {
                     double xx = (Xr - Xf) / 1000.0;
                     
                     double sig_y = get_sigma_y(met->pgcat, xx);
                     double sig_z = get_sigma_z(met->pgcat, xx);
                     
-                    int i = cr_to_linear(x, z, domain->x_points, domain->z_points);
+                    int i = cr_to_linear(x, z, domain->xh_points, domain->zh_points);
                     hgrid[i] += (conc(xx, 0.0, Zr, Uz, Q, H, sig_y, sig_z) / (double)met->hours);
                 }
-                Xr += domain->x_spacing;
+                Xr += domain->xh_spacing;
             }
-            Zr += domain->z_spacing;
+            Zr += domain->zh_spacing;
         }
 
         // Generate a new random met hour
@@ -484,9 +488,13 @@ void iter_disp(double *rgrid, double *hgrid, Domain *domain, Source *source, Met
 }
 
 void create_image(unsigned char *destgrid, double *grid, Domain *domain, int gridtype) {
-    int x_points = domain->x_points;
-    int y_points = domain->y_points;
-    if (gridtype == SECTION) y_points = domain->z_points;
+    int x_points = domain->xr_points;
+    int y_points = domain->yr_points;
+    
+    if (gridtype == SECTION) {
+        x_points = domain->xh_points;
+        y_points = domain->zh_points;
+    }
     
     // Calculate normalised minimum to allow banding
     double grid_max = 0.0;

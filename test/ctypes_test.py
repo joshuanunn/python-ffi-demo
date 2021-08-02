@@ -30,17 +30,20 @@ class MetHour(Structure):
 
 class Domain(Structure):
     _fields_ = [
-        ('x_min', c_int), ('x_max', c_int),
-        ('y_min', c_int), ('y_max', c_int),
-        ('z_min', c_int), ('z_max', c_int),
+        ('xr_min', c_int), ('xr_max', c_int),
+        ('yr_min', c_int), ('yr_max', c_int),
+        ('xh_min', c_int), ('xh_max', c_int),
+        ('zh_min', c_int), ('zh_max', c_int),
 
-        ('x_spacing', c_int),
-        ('y_spacing', c_int),
-        ('z_spacing', c_int),
+        ('xr_spacing', c_int),
+        ('yr_spacing', c_int),
+        ('xh_spacing', c_int),
+        ('zh_spacing', c_int),
 
-        ('x_points', c_int),
-        ('y_points', c_int),
-        ('z_points', c_int)
+        ('xr_points', c_int),
+        ('yr_points', c_int),
+        ('xh_points', c_int),
+        ('zh_points', c_int)
     ]
 
 class Source(Structure):
@@ -143,14 +146,14 @@ def create_image(png_grid_np, grid_np, domain, gridtype):
 
 
 def new_grids(domain):
-    r_grid = np.zeros((domain.x_points * domain.y_points), dtype=np.float64)
-    h_grid = np.zeros((domain.x_points * domain.z_points), dtype=np.float64)
+    r_grid = np.zeros((domain.xr_points * domain.yr_points), dtype=np.float64)
+    h_grid = np.zeros((domain.xh_points * domain.zh_points), dtype=np.float64)
     return r_grid, h_grid
 
 
 def new_images(domain):
-    r_image = np.zeros((domain.x_points * domain.y_points), dtype=np.uint8)
-    h_image = np.zeros((domain.x_points * domain.z_points), dtype=np.uint8)
+    r_image = np.zeros((domain.xr_points * domain.yr_points), dtype=np.uint8)
+    h_image = np.zeros((domain.xh_points * domain.zh_points), dtype=np.uint8)
     return r_image, h_image
 
 
@@ -395,7 +398,7 @@ class TestIterDisp(unittest.TestCase):
         iter_disp(r_grid, h_grid, domain, source, methour)
         
         self.assertAlmostEqual(r_grid[23 * 250 + 14], 6.366502967443e-08)
-        self.assertAlmostEqual(h_grid[18 * 250 + 181], 4.086979994894e-07)
+        self.assertAlmostEqual(h_grid[41 * 250 + 181], 3.963714618520e-07)
 
 
 class TestCreateImage(unittest.TestCase):
