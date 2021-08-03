@@ -1,6 +1,6 @@
 import ctypes
-import math
 import numpy as np
+
 from ctypes import byref, POINTER, Structure
 from ctypes import c_char, c_double, c_int, c_ubyte
 from pathlib import Path
@@ -55,7 +55,10 @@ class Source(Structure):
     ]
 
 # Import compiled c code using ctypes
-_disperse = ctypes.CDLL(MODULE_ROOT / 'disperse.so')
+try:
+    _disperse = ctypes.CDLL(MODULE_ROOT / 'disperse.so')
+except:
+    raise ValueError('C shared object file [disperse.so] is missing, complete module setup to compile.')
 
 ### Setup ctypes functions ###
 
