@@ -2,7 +2,7 @@
 CC = gcc
 
 # compiler flags:
-CFLAGS = -O3
+CFLAGS = -O3 -D_FORTIFY_SOURCE=2 -g3 -Wall -Werror -std=c17
 
 # build target
 TARGET = disperse
