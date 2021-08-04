@@ -4,6 +4,12 @@
 #include <stdlib.h>
 #include <time.h>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+#ifndef M_E
+#define M_E 2.71828182845904523536
+#endif
 #define G_CONST 9.80616 // Gravitational constant
 #define BANDS 10        // Number of bands for image generation
 
@@ -254,7 +260,7 @@ returns:
 Uz			[m/s] 	estimated wind speed at target elevation z
 */
 double calc_uz(double uz_ref, double z, double z_ref, char pgcat, char roughness) {
-    double p;
+    double p = 0;
     
     if (roughness == URBAN) {
         switch (pgcat) {
@@ -275,9 +281,6 @@ double calc_uz(double uz_ref, double z, double z_ref, char pgcat, char roughness
                 break;
             case F:
                 p = 0.30;
-                break;
-            default:
-                p = 0.0;
         }
     } else if (roughness == RURAL) {
         switch (pgcat) {
@@ -298,9 +301,6 @@ double calc_uz(double uz_ref, double z, double z_ref, char pgcat, char roughness
                 break;
             case F:
                 p = 0.55;
-                break;
-            default:
-                p = 0.0;
         }
     }
 
@@ -428,7 +428,7 @@ void iter_disp(double *rgrid, double *hgrid, Domain *domain, Source *source, Met
     double AMBIENT_TEMP = 293.15; // Fixed ambient temperature [K] (20 C)
     char roughness = URBAN;
 
-    for (int hour; hour < met->hours; hour++) {
+    for (int hour = 0; hour < met->hours; hour++) {
         // Calculate effective wind speed at stack tip (user specified wind speed is for 10 m)
         double Uz = calc_uz(met->wspd, source->height, 10.0, met->pgcat, roughness);
         
