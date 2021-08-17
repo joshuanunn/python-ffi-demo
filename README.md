@@ -44,7 +44,7 @@ iter_disp(r_grid, h_grid, domain, source, methour)
 
 An example notebook is included [here](ctypes_example.ipynb), which shows how to visualise the outputs to generate images like the following:
 
-[Sample output](sample_output.png)
+![Sample output](sample_output.png)
 
 ## Contributing
 Any pull requests to improve or add to the examples are very welcome!
