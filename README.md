@@ -1,3 +1,5 @@
+[![test](https://github.com/joshuanunn/python-ffi-demo/actions/workflows/test.yaml/badge.svg)](https://github.com/joshuanunn/python-ffi-demo/actions/workflows/test.yaml)
+
 # Python Foreign Function Interface (FFI) Demo
 
 Python is slow for CPU intensive calculations. If you are here, you probably know this. Potential solutions include judicious use of NumPy (compiled C library), Numba (JIT compiler) or AOT compiled code in a variety of languages (e.g. C, C++, Fortran, Rust) via one of the many available Foreign Function Interface (FFI) libraries.
